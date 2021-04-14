@@ -1,0 +1,160 @@
+/**
+ * \mainpage EnumUtils library
+ *
+ * \section overviewSection Overview
+ *
+ * EnumUtils is meant to provide a convenient way of working with C++ enumerations (both with plain old \c enum and more
+ * recent `enum class`). Enumerations could have been used to model powerful and efficient set data types, or to build
+ * algebraic data types upon them, but the core language support for these is scarce. The library tries to fill the void.
+ *
+ * \section capabilitiesSection Capabilities
+ *
+ * You can do cool stuff like
+ * \ref mappingGroup "mapping" at compile time, various
+ * \ref conversionGroup "conversions" at runtime,
+ * \ref traversalGroup "traverse" your enumerations in multiple ways both at compile time and runtime, use enumeration-based
+ * \ref containersGroup "containers", and even tailor your own
+ * \ref variadic_type "variadic container types" with a single line of code. Take a look at the examples to see what it's
+ * all about.
+ *
+ * \section limitationsSection Limitations
+ *
+ * Enumerations that you work with using this library have to be continuous. That is, contain no gaps between their item
+ * values. If they do contain gaps, the library still would work, but as if there were none. The order of items may be
+ * arbitrary, but the "minimal" and the "maximal" elements have to be defined as "first" and "last" respectively.
+ *
+ * See the following snippet for details:
+ *
+ * \code
+ * enum class ContinuousEnum1 { A,      B,      C      };  // EnumUtils is perfectly fine with this.
+ * enum class ContinuousEnum2 { A = 1,  B = 2,  C = 3  };  // EnumUtils is fine with this too: non-zero first items are acceptable.
+ * enum class DisorderedItem  { A = 2,  B = 3,  C = 1  };  // EnumUtils is fine as long as it's defined `ENUM_UTILS_DEFINE_TRAITS_FL(DisorderedItem, C, B)`.
+ * enum class EnumWithGaps    { A = 0,  B = 10, C = 20 };  // EnumUtils still can handle, but see below to learn the important difference.
+
+ * \endcode
+ *
+ * In the last case the library will assume \c EnumWithGaps contains 21 items [0..20], not the actual three.
+ *
+ * \section quickStartSection Quick start
+ *
+ * First of all, you'll need to define \ref traitsGroup "traits" for your enumerations by means of either
+ * \ref ENUM_UTILS_DEFINE_TRAITS() or \ref ENUM_UTILS_DEFINE_TRAITS_FL() macro. That's the crucial part. See \ref traits.cpp
+ * for an example. Then the reset examples can guide you through other features of the library.
+ *
+ * \section faqSection FAQ
+ *
+ * \subsection Q1 Why do I get a compilation error "Traits for the enum are not defined"?
+ *
+ * This happens when a library function can't find a specialization of \ref enum_utils::traits for the enumeration it
+ * tries to use. The specialization is either indeed not defined (then you'll need to define it with either
+ * \ref ENUM_UTILS_DEFINE_TRAITS() or \ref ENUM_UTILS_DEFINE_TRAITS_FL()), or it's not included into the unit being compiled
+ * before the first usage of a library function (for example, you defined the macro in a .cpp, but the function is
+ * invoked from elsewhere). As a rule of thumb, the macro should be defined in the same file as the enumeration itself.
+ * An obvious exception is external libraries. Then you'll have to put the macros to a different file.
+ *
+ * \subsection Q2 Why do I get a compilation error "The C++ Standard doesn't provide a hash for this type" when I use the library for conversion?
+ *
+ * You probably tried to invoke \ref enum_utils::convert_to_enum() on a custom made type. The function is built upon
+ * `std::unordered_map` which relys on hashes. You'll need to provide a specialization of `std::hash` for your type
+ * like in \ref conversion.cpp.
+ *
+ * \subsection Q3 Why do I get a link error that says something about undefined symbol "enum_utils::detail::convert"?
+ *
+ * That's how the robustness of the conversion is manifesting (that's funny, I know). This link error means that not
+ * all the items of the enum you try to convert are bound to values. You probably need \ref ENUM_UTILS_DEFINE_CONVERSION()
+ * for the omitted item(s). If all the macros are in place, check the type they convert to -- it has to match strictly
+ * the type you supply to \ref enum_utils::convert_to_value(). Please, keep in mind that string literals are `const char*`
+ * and `const wchar_t*`, not \c std::string and \c std::wstring respectively. CV-qualifiers are also important.
+ *
+ * \subsection Q4 Why doesn't the library "see" some of the items of my enumeration?
+ *
+ * The library relies on the information you provide, so it can be misled. Check your \c _last alias in the enumeration
+ * (if you use it, of course). Then check the macro that defines traits for the enumeration. Make sure the first defined
+ * item is really first and the last is really last.
+ *
+ * \subsection Q5 What's the difference between mapping and conversion?
+ *
+ * Mapping is always made at compile time and should generally be your first choice because it's more memory- and time-
+ * efficient. It also allows you to map to/from types, which is not immediately possible at runtime. However, mapping
+ * has strict limitations on the allowed types in case of mapping to/from values (see \ref mappingGroup for details).
+ * Conversion is free of such limitations, but it's performed at runtime. Use it when you can't use mapping.
+ *
+ * \subsection Q6 Why use array when I can use std::array or even a built-in array?
+ *
+ * Because it does all dirty work for you at no cost. Aye, you can use either of them with plain old \c enum without
+ * needing the lib, but \c enum is discouraged in favor of `enum class` which, in this case, would require ugly and
+ * unsafe casts all over the code. But the main reason is \ref enum_utils::array::make(). It's a cool thing, just
+ * give it a try. And don't be afraid of the involved template functor -- it's fairly simple to use. \ref array.cpp
+ * may be of some use here.
+ *
+ * \subsection Q7 Why don't functions for indexed access perform bounds checking at runtime and neither does array?
+ *
+ * For the same reason most functions of STL don't do that either -- efficiency in possible hot paths where every
+ * conditional jump makes a difference. I plan to add strict versions of those functions too. To be completely fair,
+ * that's not the only reason. As for now, \ref enum_utils::iterator relys on liberal bounds because it needs to
+ * represent \c end() -- a non existent item beyond the upper bound.
+ */
+
+/**
+ * \defgroup traitsGroup Traits
+ * \brief Enumeration traits are used to introduce your enumeration to the library.
+ *
+ * Enumeration traits are the cornerstone of the library. The C++ language provides no means to obtain any information
+ * about the contents of an enumeration. So it has to be explicitly defined instead.
+ */
+
+/**
+ * \defgroup indexedGroup Indexed access
+ * \brief Indexed access to enumeration items, determining item index, and obtaining the number of available indices.
+ */
+
+/**
+ * \defgroup traversalGroup Traversal
+ * \brief Various means of iterating enumerations.
+ *
+ */
+
+/**
+ * \defgroup containersGroup Containers
+ * \brief Containers that are defined in terms of enumerations.
+ */
+
+/**
+ * \defgroup mappingGroup Compile time mapping
+ * \brief Compile time mapping from enumerations to values of structural types and back. Or to types themselves and back.
+ *
+ * The mapping is robust. That is, if it's requested somewhere in your program, all the items of the enumerations must
+ * be mapped to values/types. If any item is omitted, you get a compilation error.
+ *
+ * The limitation on values of structural types is strict. You won't be able to use mapping for values of non-constexpr
+ * types. In that case you'll have to use \ref conversionGroup "conversion" instead. Good news is that the limitation
+ * isn't applied to mapping to- and from- types. You can use any type whatsoever for such mapping.
+ *
+ * In case of values you can use \ref array as an alternate way of mapping. It isn't limited to values of
+ * structural types, but if you want constexpr, the value types still need to comply.
+ * \sa array::make()
+ */
+
+/**
+ * \defgroup conversionGroup Runtime conversion
+ * \brief Runtime conversion from enumerations to values of any type and back.
+ *
+ * The main difference from mapping is that it's strictly runtime conversion, but it allows any types, even complex
+ * ones. The conversion is robust. That is, if it's requested somewhere in your program, all the items of the
+ * enumerations involved in conversion must be bound to a value. If any item is omitted, you get a linker error.
+ *
+ * Before you can convert, all the necessary conversions must be fully defined. You can either use
+ * \ref ENUM_UTILS_DEFINE_CONVERSION() for this purpose, or you can provide a specialization of \ref conversion_generator.
+ *
+ * The conversion can be performed in both ways. See convert_to_value() and convert_to_enum() for details.
+ */
+
+/**
+ * \example array.cpp
+ * \example conversion.cpp
+ * \example indexed_access.cpp
+ * \example mapping_to_type.cpp
+ * \example mapping_to_value.cpp
+ * \example traits.cpp
+ * \example variadic.cpp
+ */
